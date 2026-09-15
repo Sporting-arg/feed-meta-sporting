@@ -1,0 +1,41 @@
+name: Feed Meta (reformatea el XML de VTEX)
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar xmllint
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+
+      - name: Bajar el XML de VTEX
+        run: curl -fSL "https://www.sporting.com.ar/XMLData/rssfeed-meta.xml" -o raw.xml
+
+      - name: Chequear que no vino vacio
+        run: |
+          if [ ! -s raw.xml ]; then
+            echo "El feed de VTEX vino vacio. Aborto para no pisar el bueno."
+            exit 1
+          fi
+
+      - name: Reformatear a multilinea
+        run: |
+          mkdir -p docs
+          xmllint --format raw.xml --output docs/feed-meta.xml
+
+      - name: Publicar si cambio
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add docs/feed-meta.xml
+          git diff --staged --quiet || git commit -m "Update feed Meta"
+          git push
